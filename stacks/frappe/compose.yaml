@@ -1,0 +1,86 @@
+version: "3.9"
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    container_name: mariadb
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - frappe_network
+
+  redis-cache:
+    image: redis:alpine
+    container_name: redis-cache
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    networks:
+      - frappe_network
+
+  redis-queue:
+    image: redis:alpine
+    container_name: redis-queue
+    networks:
+      - frappe_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  redis-socketio:
+    image: redis:alpine
+    container_name: redis-socketio
+    networks:
+      - frappe_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+        
+  frappe:
+      image: ${FRAPPE_IMAGE}
+      volumes:
+        - apps:/home/frappe/frappe-bench/apps
+        - sites:/home/frappe/frappe-bench/sites
+        - logs:/home/frappe/frappe-bench/logs
+      depends_on:
+        mariadb:
+          condition: service_healthy
+        redis-cache:
+          condition: service_healthy
+        redis-queue:
+          condition: service_healthy
+      networks:
+        - frappe_network
+      deploy:
+        restart_policy:
+          condition: on-failure
+
+volumes:
+  mariadb-data:
+  apps:
+  sites:
+  logs:
+
+networks:
+  traefik-network:
+    external: true
+  frappe_network:
+    driver: bridge
