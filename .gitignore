@@ -1,0 +1,53 @@
+# 🐳 Docker
+*.log
+*.pid
+*.gz
+*.swp
+*.bak
+*.tmp
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+.env.*
+**/.env
+**/.env.*
+docker-compose.override.yml
+*.db
+
+# 📦 Node.js / Yarn
+node_modules/
+.npm/
+.yarn/
+.yarnrc.yml
+
+# 🧪 Python / Bench / Frappe
+*.pyc
+*.pyo
+*.egg-info/
+*.eggs/
+bench-repo/
+sites/*/private/*
+sites/*/logs/*
+sites/*/backups/*
+sites/assets/
+sites/apps.txt
+sites/common_site_config.json
+sites/currentsite.txt
+
+# 🧰 Komodo
+komodo.lock
+komodo.yml
+komodo.out/
+komodo.cache/
+*.komodo.*
+
+# 🧾 Editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 📁 OS-specific
+.DS_Store
+Thumbs.db
