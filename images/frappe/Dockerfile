@@ -17,6 +17,7 @@ RUN useradd -ms /bin/bash frappe \
     curl \
     git \
     vim \
+    nano \
     nginx \
     gettext-base \
     file \
@@ -129,8 +130,7 @@ RUN export APP_INSTALL_ARGS="" && \
     --verbose \
     /home/frappe/frappe-bench && \
   cd /home/frappe/frappe-bench && \
-  echo "{}" > sites/common_site_config.json && \
-  find apps -mindepth 1 -path "*/.git" | xargs rm -fr
+  echo "{}" > sites/common_site_config.json 
 
 FROM base AS backend
 
