@@ -33,6 +33,7 @@ RUN useradd -ms /bin/bash frappe \
   curl \
   wget \
   git \
+  pkg-config \
   vim \
   nano \
   nginx \
@@ -58,6 +59,9 @@ RUN useradd -ms /bin/bash frappe \
   && nvm use v${NODE_VERSION} \
   && npm install -g yarn \
   && nvm alias default v${NODE_VERSION} \
+  && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/node /usr/local/bin/node \
+  && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/npm /usr/local/bin/npm \
+  && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/yarn /usr/local/bin/yarn \
   && rm -rf ${NVM_DIR}/.cache \
   && echo 'export NVM_DIR="/home/frappe/.nvm"' >>/home/frappe/.bashrc \
   && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm' >>/home/frappe/.bashrc \
@@ -99,7 +103,6 @@ RUN apt-get update \
   libsasl2-dev \
   libtiff5-dev \
   libwebp-dev \
-  pkg-config \
   redis-tools \
   rlwrap \
   tk8.6-dev \
