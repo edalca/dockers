@@ -143,6 +143,8 @@ USER frappe
 
 COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
 
+RUN cp -R /home/frappe/frappe-bench/apps /home/frappe/apps_backup
+
 WORKDIR /home/frappe/frappe-bench
 
 VOLUME [ \
