@@ -3,16 +3,17 @@ set -e
 
 echo "🚀 Starting Qota Development Environment..."
 
-# --- 1. SINCRONIZACIÓN DE ARCHIVOS ---
-if [ -z "$(ls -A /home/frappe/frappe-bench/apps)" ]; then
-    echo "📂 Apps folder is empty. Syncing Frappe Framework..."
+if [ -z "$(ls -A /home/frappe/frappe-bench/apps 2>/dev/null)" ]; then
+    echo "📂 Apps folder is empty. Syncing Frappe Framework from internal backup..."
     cp -R /home/frappe/apps_backup/. /home/frappe/frappe-bench/apps/
-    echo "✅ Sync complete!"
+    echo "✅ Sync complete! Files are now on your host (D: drive)."
+else
+    echo "✅ Apps folder is not empty. Skipping synchronization to protect your local files."
 fi
 
 echo "🔐 Adjusting permissions..."
-chown -R frappe:frappe /home/frappe/frappe-bench/apps
-chown -R frappe:frappe /home/frappe/frappe-bench/sites
+chown -R frappe:frappe /home/frappe/frappe-bench/apps 2>/dev/null || true
+chown -R frappe:frappe /home/frappe/frappe-bench/sites 2>/dev/null || true
 
 if [[ -z "$DB_HOST" ]]; then
   echo "⚠️  DB_HOST defaulting to: db"
@@ -73,6 +74,5 @@ else
     echo "✅ Site $SITE_NAME already exists."
 fi
 
-# --- 5. ARRANQUE ---
 echo "🔥 Launching Bench..."
 exec bench start
