@@ -73,6 +73,7 @@ WORKDIR /home/frappe
 
 ARG FRAPPE_BRANCH
 ARG QOTA_REPO
+ARG QOTA_VERSION=16.0.0
 
 # Inicialización del Bench e instalación automática de Qota
 RUN bench init --frappe-branch=${FRAPPE_BRANCH} \
