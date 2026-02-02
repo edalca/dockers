@@ -14,6 +14,7 @@ ARG DEBIAN_BASE=bookworm
 ARG NODE_VERSION=20.19.2
 ARG NVM_VERSION=v0.40.3
 ARG FRAPPE_BRANCH=version-15
+ARG FRAPPE_PATH=https://github.com/frappe/frappe
 
 FROM python:${PYTHON_VERSION}-slim-${DEBIAN_BASE} AS base
 
@@ -27,6 +28,8 @@ ARG NODE_VERSION
 ARG NVM_VERSION
 ENV NVM_DIR=/home/frappe/.nvm
 ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/:${PATH}
+ENV FRAPPE_BRANCH=${FRAPPE_BRANCH}
+ENV FRAPPE_PATH=${FRAPPE_PATH}
 
 RUN useradd -ms /bin/bash frappe \
   && apt-get update \
@@ -116,16 +119,14 @@ RUN apt-get update \
 
 ARG APPS_JSON_BASE64
 RUN if [ -n "${APPS_JSON_BASE64}" ]; then \
-  mkdir /opt/frappe && echo "${APPS_JSON_BASE64}" | base64 -d > /opt/frappe/apps.json; \
+  echo "${APPS_JSON_BASE64}" | base64 -d > /home/frappe/apps.json; \
   fi
 
 USER frappe
 
-ARG FRAPPE_BRANCH
-ARG FRAPPE_PATH=https://github.com/frappe/frappe
 RUN export APP_INSTALL_ARGS="" && \
   if [ -n "${APPS_JSON_BASE64}" ]; then \
-  export APP_INSTALL_ARGS="--apps_path=/opt/frappe/apps.json"; \
+  export APP_INSTALL_ARGS="--apps_path=/home/frappe/apps.json"; \
   fi && \
   bench init ${APP_INSTALL_ARGS}\
   --frappe-branch=${FRAPPE_BRANCH} \
@@ -143,7 +144,7 @@ USER frappe
 
 COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
 
-RUN cp -R /home/frappe/frappe-bench/apps /home/frappe/apps_backup
+ENV FRAPPE_APPS=${APPS_JSON_BASE64}
 
 WORKDIR /home/frappe/frappe-bench
 
