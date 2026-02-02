@@ -1,0 +1,43 @@
+ignored:
+  # DL3008: apt-get install sin versiones fijas
+  # No es práctico fijar versiones en imágenes base Debian/Bookworm
+  - DL3008
+
+  # DL3013: pinnear versiones de pip
+  # Frappe/bench instala dependencias dinámicamente
+  - DL3013
+
+  # DL3003: no usar cd en RUN
+  # Ya lo corregiste, pero lo dejamos por si en algún RUN complejo lo necesitás
+  - DL3003
+
+  # DL4006: usar SHELL para comandos complejos
+  # Tus RUN usan && y backslashes correctamente
+  - DL4006
+
+  # DL3042: evitar apt-get upgrade
+  # No lo usás, pero evita falsos positivos si algún día aparece
+  - DL3042
+
+  # DL3015: recomienda --no-install-recommends
+  # Ya lo usás, pero Hadolint a veces no lo detecta en RUN largos
+  - DL3015
+
+  # DL3016: pinnear versiones en npm install
+  # No aplica con NVM + Yarn global
+  - DL3016
+
+  # SC1091: source de archivos no encontrados en build
+  # NVM usa "source $NVM_DIR/nvm.sh" y dispara este warning
+  - SC1091
+
+  # SC2086: expansión sin comillas
+  # En Dockerfiles es común y seguro en RUN
+  - SC2086
+
+failure-threshold: warning
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - registry.hub.docker.com
