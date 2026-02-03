@@ -133,7 +133,9 @@ LABEL org.opencontainers.image.title="Frappe Framework Runtime" \
       edalca.frappe.branch="${FRAPPE_BRANCH}" \
       edalca.frappe.version="${FRAPPE_VERSION}" \
       edalca.python.version="${PYTHON_VERSION}" \
-      edalca.node.version="${NODE_VERSION}"
+      edalca.node.version="${NODE_VERSION}" \
+      edalca.image.type="Frappe Framework"
+
 
 ARG APPS_JSON_BASE64
 ENV FRAPPE_APPS=${APPS_JSON_BASE64}
