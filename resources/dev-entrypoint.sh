@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 echo "🚀 Starting Qota Development Environment..."
 
 APPS_DIR="/home/frappe/frappe-bench/apps"
@@ -101,3 +103,13 @@ else
 fi
 
 # ------------------------------------------------------------
+# MANTENER EL CONTENEDOR VIVO
+# ------------------------------------------------------------
+# $@ captura ["sleep", "infinity"] del docker-compose.yml
+if [ $# -gt 0 ]; then
+    echo "🚀 Running command: $@"
+    exec "$@"
+else
+    echo "⚠️ No command provided to entrypoint, falling back to sleep infinity..."
+    exec sleep infinity
+fi
