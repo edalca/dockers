@@ -17,11 +17,11 @@ ARG FRAPPE_PATH=https://github.com/frappe/frappe
 ARG FRAPPE_VERSION=16
 
 # ------------------------------------------------------------------------------------
-# Base
+# Base: Instalación de dependencias del sistema y entorno
 # ------------------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim-${DEBIAN_BASE} AS base
 
-# 🔁 Redeclarar ARGs usados en esta etapa
+#  Redeclarar ARGs usados en esta etapa
 ARG NODE_VERSION
 ARG NVM_VERSION
 ARG FRAPPE_BRANCH
@@ -76,7 +76,7 @@ RUN useradd -ms /bin/bash frappe \
     && chmod 644 /templates/nginx/frappe.conf.template
 
 # ------------------------------------------------------------------------------------
-# Builder
+# Builder: Instalación del bench y descarga de la app de Frappe
 # ------------------------------------------------------------------------------------
 FROM base AS builder
 
@@ -112,12 +112,18 @@ RUN export APP_INSTALL_ARGS="" \
     && echo "{}" > /home/frappe/frappe-bench/sites/common_site_config.json
 
 # ------------------------------------------------------------------------------------
-# Backend (runtime)
+# Backend: Imagen final de ejecución
 # ------------------------------------------------------------------------------------
 FROM base AS backend
 
+# Redeclarar ARGs para que las etiquetas (LABEL) puedan leerlos
+ARG FRAPPE_VERSION
+ARG FRAPPE_BRANCH
+ARG PYTHON_VERSION
+ARG NODE_VERSION
+
 # ------------------------------------------------------------------------------------
-# Metadatos de la Imagen
+# Metadatos de la Imagen (OCI Standards + Personalizados)
 # ------------------------------------------------------------------------------------
 LABEL org.opencontainers.image.title="Frappe Framework Runtime" \
       org.opencontainers.image.description="Production-ready Frappe Framework environment pre-configured with Frappe App and system dependencies, designed for rapid deployment of custom apps and sites." \
@@ -135,6 +141,7 @@ ENV FRAPPE_APPS=${APPS_JSON_BASE64}
 USER frappe
 WORKDIR /home/frappe/frappe-bench
 
+# Copiar el bench ya inicializado desde el builder
 COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
 
 VOLUME [ \
