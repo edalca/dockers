@@ -14,6 +14,7 @@ ARG NODE_VERSION=20.19.2
 ARG NVM_VERSION=v0.40.3
 ARG FRAPPE_BRANCH=version-15
 ARG FRAPPE_PATH=https://github.com/frappe/frappe
+ARG FRAPPE_VERSION=16
 
 # ------------------------------------------------------------------------------------
 # Base
@@ -114,6 +115,19 @@ RUN export APP_INSTALL_ARGS="" \
 # Backend (runtime)
 # ------------------------------------------------------------------------------------
 FROM base AS backend
+
+# ------------------------------------------------------------------------------------
+# Metadatos de la Imagen
+# ------------------------------------------------------------------------------------
+LABEL org.opencontainers.image.title="Frappe Framework Runtime" \
+      org.opencontainers.image.description="Production-ready Frappe Framework environment pre-configured with Frappe App and system dependencies, designed for rapid deployment of custom apps and sites." \
+      org.opencontainers.image.vendor="edalca" \
+      org.opencontainers.image.version="${FRAPPE_VERSION}" \
+      org.opencontainers.image.authors="Edwin Alonso <edwinalonso162@hotmail.com>" \
+      edalca.frappe.branch="${FRAPPE_BRANCH}" \
+      edalca.frappe.version="${FRAPPE_VERSION}" \
+      edalca.python.version="${PYTHON_VERSION}" \
+      edalca.node.version="${NODE_VERSION}"
 
 ARG APPS_JSON_BASE64
 ENV FRAPPE_APPS=${APPS_JSON_BASE64}
