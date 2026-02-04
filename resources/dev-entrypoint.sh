@@ -8,33 +8,27 @@ APPS_DIR="/home/frappe/frappe-bench/apps"
 BENCH_DIR="/home/frappe/frappe-bench"
 
 # ------------------------------------------------------------
-# Procesar FRAPPE_APPS (Formato Lista: [ {url, branch}, ... ])
+# 1. Descarga de apps desde FRAPPE_APPS (Base64)
 # ------------------------------------------------------------
-all_app_names=""
-
 if [ -n "$FRAPPE_APPS" ]; then
     echo "🔍 Checking for apps defined in FRAPPE_APPS..."
     
-    # Decodificamos el Base64 una sola vez
     raw_json=$(echo "$FRAPPE_APPS" | base64 -d)
-    
-    # Obtenemos la cantidad de apps en el array usando jq
     count=$(echo "$raw_json" | jq '. | length')
 
     for (( i=0; i<$count; i++ )); do
         url=$(echo "$raw_json" | jq -r ".[$i].url")
         branch=$(echo "$raw_json" | jq -r ".[$i].branch")
         
-        # Extraer el nombre de la app desde la URL
-        # Ejemplo: https://github.com/frappe/erpnext.git -> erpnext
-        app_name=$(basename "$url" .git)
-        all_app_names="$all_app_names $app_name"
+        # Usamos basename solo para chequear si la carpeta ya existe
+        # Si no existe, bench get-app se encarga de descargarla y nombrarla correctamente
+        repo_name=$(basename "$url" .git)
 
-        if [ ! -d "$APPS_DIR/$app_name" ]; then
-            echo "⬇️  App '$app_name' not found. Installing from $url..."
+        if [ ! -d "$APPS_DIR/$repo_name" ]; then
+            echo "⬇️  Installing app from $url..."
             bench get-app --branch "$branch" "$url"
         else
-            echo "✅ App '$app_name' is already present in $APPS_DIR."
+            echo "✅ Repo '$repo_name' already present."
         fi
     done
 else
@@ -42,7 +36,7 @@ else
 fi
 
 # ------------------------------------------------------------
-# Defaults de entorno
+# 2. Defaults de entorno
 # ------------------------------------------------------------
 export DB_HOST=${DB_HOST:-db}
 export DB_PORT=${DB_PORT:-3306}
@@ -59,12 +53,13 @@ if [[ -z "$DB_ROOT_PASSWORD" ]]; then
 fi
 
 # ------------------------------------------------------------
-# Configuración de common_site_config.json
+# 3. Configuración de common_site_config.json
 # ------------------------------------------------------------
 echo "🔗 Configuring common_site_config.json..."
 cd "$BENCH_DIR"
 
-# Sincronizar el archivo apps.txt con las carpetas físicas
+# Sincronizamos apps.txt con las carpetas reales en /apps
+# Este archivo será nuestra "fuente de verdad" para instalar en el sitio
 ls -1 apps > sites/apps.txt || touch sites/apps.txt
 
 bench set-config -g db_host "$DB_HOST"
@@ -73,15 +68,16 @@ bench set-config -g redis_cache "redis://$REDIS_CACHE"
 bench set-config -g redis_queue "redis://$REDIS_QUEUE"
 bench set-config -g redis_socketio "redis://$REDIS_SOCKETIO"
 bench set-config -gp socketio_port "$SOCKETIO_PORT"
+bench set-config -g developer_mode 1
 
 # ------------------------------------------------------------
-# Esperar a que MariaDB esté lista
+# 4. Esperar a MariaDB
 # ------------------------------------------------------------
 echo "⏳ Waiting for MariaDB at $DB_HOST:$DB_PORT..."
 wait-for-it "$DB_HOST:$DB_PORT" -t 60
 
 # ------------------------------------------------------------
-# Crear sitio e instalar Apps en la Base de Datos
+# 5. Crear sitio e instalar Apps (Leyendo de apps.txt)
 # ------------------------------------------------------------
 if [ ! -d "sites/$SITE_NAME" ]; then
     echo "🏗️  Creating new site: $SITE_NAME..."
@@ -89,37 +85,40 @@ if [ ! -d "sites/$SITE_NAME" ]; then
     bench new-site "$SITE_NAME" \
         --admin-password "$ADMIN_PASSWORD" \
         --mariadb-root-password "$DB_ROOT_PASSWORD" \
-        --install-app frappe \
-        --no-mariadb-socket
+        --mariadb-user-host-login-scope='%' \
+        --no-mariadb-socket \
+        --set-default
 
-    # Instalar las apps descargadas en el sitio nuevo
-    for app in $all_app_names; do
-        if [ "$app" != "frappe" ]; then
-            echo "📦 Installing $app on site $SITE_NAME..."
+    echo "📦 Installing detected apps from apps.txt..."
+    while read -r app; do
+        if [ -n "$app" ] && [ "$app" != "frappe" ]; then
+            echo "   -> Installing $app..."
             bench --site "$SITE_NAME" install-app "$app"
         fi
-    done
+    done < sites/apps.txt
 else
-    echo "✅ Site $SITE_NAME already exists. Syncing apps..."
-    # Intentar instalar apps que falten por si el JSON cambió
-    for app in $all_app_names; do
-        if [ "$app" != "frappe" ]; then
-             # El comando install-app es seguro; si ya está instalada, no hace nada
+    echo "✅ Site $SITE_NAME already exists. Syncing apps from apps.txt..."
+    while read -r app; do
+        if [ -n "$app" ] && [ "$app" != "frappe" ]; then
+             # install-app es seguro: si ya está en la DB, no hace nada
              bench --site "$SITE_NAME" install-app "$app" || true
         fi
-    done
+    done < sites/apps.txt
 fi
 
+# ------------------------------------------------------------
+# 6. Finalización y ejecución
+# ------------------------------------------------------------
 bench use "$SITE_NAME"
 
-# ------------------------------------------------------------
-# Ejecución del comando final
-# ------------------------------------------------------------
-# $@ recibe los argumentos del CMD del Dockerfile (Gunicorn)
+# Ejecutamos migrate para asegurar que la DB esté al día con el código
+echo "🔄 Running migrate..."
+bench migrate
+
 if [ $# -gt 0 ]; then
     echo "🚀 Executing command: $@"
     exec "$@"
 else
-    echo "⚠️ No command provided, staying alive with sleep..."
+    echo "⚠️ No command provided, falling back to sleep..."
     exec sleep infinity
 fi

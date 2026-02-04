@@ -28,8 +28,6 @@ RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
 USER frappe
 WORKDIR /home/frappe/frappe-bench
 
-RUN echo "export FRAPPE_APPS=\$(echo '{\"qota\": {\"url\": \"${QOTA_REPO}\", \"branch\": \"main\"}}' | base64 -w 0)" >> /home/frappe/.bashrc
-
 ENV BASH_ENV=/home/frappe/.bashrc
 # ------------------------------------------------------------
 # Instalación de Qota
@@ -46,10 +44,5 @@ RUN cd apps/qota \
     && cd ../.. \
     && bench setup requirements
 
-# 3) Build de Assets (Solo si es necesario para producción)
-# RUN bench build --app qota
 
-# Metadata de entorno
-ENV FRAPPE_APP=qota
-ENV FRAPPE_APP_COMMIT=${QOTA_COMMIT}
 
