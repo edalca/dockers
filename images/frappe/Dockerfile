@@ -76,13 +76,12 @@ RUN useradd -ms /bin/bash frappe \
     && chmod 644 /templates/nginx/frappe.conf.template
 
 # ------------------------------------------------------------------------------------
-# Builder: Instalación del bench y descarga de la app de Frappe
+# Builder: Instalación básica del Bench (Sin inyectar apps en el build)
 # ------------------------------------------------------------------------------------
 FROM base AS builder
 
 ARG FRAPPE_BRANCH
 ARG FRAPPE_PATH
-ARG APPS_JSON_BASE64
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
@@ -92,17 +91,10 @@ RUN apt-get update \
     libsasl2-dev libtiff5-dev libwebp-dev libbz2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN if [ -n "${APPS_JSON_BASE64}" ]; then \
-    echo "${APPS_JSON_BASE64}" | base64 -d > /home/frappe/apps.json; \
-    fi
-
 USER frappe
 
-RUN export APP_INSTALL_ARGS="" \
-    && if [ -n "${APPS_JSON_BASE64}" ]; then \
-    export APP_INSTALL_ARGS="--apps_path=/home/frappe/apps.json"; \
-    fi \
-    && bench init ${APP_INSTALL_ARGS} \
+# Inicializamos el bench solo con Frappe Framework
+RUN bench init \
     --frappe-branch=${FRAPPE_BRANCH} \
     --frappe-path=${FRAPPE_PATH} \
     --no-backups \
@@ -112,7 +104,7 @@ RUN export APP_INSTALL_ARGS="" \
     && echo "{}" > /home/frappe/frappe-bench/sites/common_site_config.json
 
 # ------------------------------------------------------------------------------------
-# Backend: Imagen final de ejecución
+# Backend: Imagen final de ejecución (Igual a tu versión original)
 # ------------------------------------------------------------------------------------
 FROM base AS backend
 
@@ -136,9 +128,6 @@ LABEL org.opencontainers.image.title="Frappe Framework Runtime" \
       edalca.node.version="${NODE_VERSION}" \
       edalca.image.type="Frappe Framework"
 
-
-ARG APPS_JSON_BASE64
-ENV FRAPPE_APPS=${APPS_JSON_BASE64}
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench

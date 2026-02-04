@@ -2,48 +2,47 @@
 
 set -e
 
-echo "🚀 Starting Frappe Development Environment..."
+echo "🚀 Starting Frappe Environment..."
 
 APPS_DIR="/home/frappe/frappe-bench/apps"
 BENCH_DIR="/home/frappe/frappe-bench"
 
-apps=""
+# ------------------------------------------------------------
+# Procesar FRAPPE_APPS (Formato Lista: [ {url, branch}, ... ])
+# ------------------------------------------------------------
+all_app_names=""
 
-# ------------------------------------------------------------
-# Leer apps desde FRAPPE_APPS (Base64)
-# ------------------------------------------------------------
 if [ -n "$FRAPPE_APPS" ]; then
-    apps=$(echo "$FRAPPE_APPS" | base64 -d | jq -r 'keys[]')
-fi
+    echo "🔍 Checking for apps defined in FRAPPE_APPS..."
+    
+    # Decodificamos el Base64 una sola vez
+    raw_json=$(echo "$FRAPPE_APPS" | base64 -d)
+    
+    # Obtenemos la cantidad de apps en el array usando jq
+    count=$(echo "$raw_json" | jq '. | length')
 
-# ------------------------------------------------------------
-# Bootstrap de apps si el directorio está vacío
-# ------------------------------------------------------------
-if [ -z "$(ls -A "$APPS_DIR" 2>/dev/null)" ]; then
-    echo "📂 Apps folder is empty. Bootstrapping from FRAPPE_APPS..."
+    for (( i=0; i<$count; i++ )); do
+        url=$(echo "$raw_json" | jq -r ".[$i].url")
+        branch=$(echo "$raw_json" | jq -r ".[$i].branch")
+        
+        # Extraer el nombre de la app desde la URL
+        # Ejemplo: https://github.com/frappe/erpnext.git -> erpnext
+        app_name=$(basename "$url" .git)
+        all_app_names="$all_app_names $app_name"
 
-    # 1️⃣ Instalar frappe primero
-    echo "⬇️ Installing frappe..."
-    bench get-app --branch "$FRAPPE_BRANCH" "$FRAPPE_PATH"
-
-    # 2️⃣ Instalar el resto de apps
-    for app in $apps; do
-        if [ "$app" != "frappe" ]; then
-            url=$(echo "$FRAPPE_APPS" | base64 -d | jq -r --arg app "$app" '.[$app].url')
-            branch=$(echo "$FRAPPE_APPS" | base64 -d | jq -r --arg app "$app" '.[$app].branch')
-
-            echo "⬇️ Installing $app..."
+        if [ ! -d "$APPS_DIR/$app_name" ]; then
+            echo "⬇️  App '$app_name' not found. Installing from $url..."
             bench get-app --branch "$branch" "$url"
+        else
+            echo "✅ App '$app_name' is already present in $APPS_DIR."
         fi
     done
-
-    echo "✅ All apps installed."
 else
-    echo "✅ Apps folder is not empty. Skipping app installation."
+    echo "ℹ️  No FRAPPE_APPS defined. Using base Frappe only."
 fi
 
 # ------------------------------------------------------------
-# Defaults de entorno (solo desarrollo)
+# Defaults de entorno
 # ------------------------------------------------------------
 export DB_HOST=${DB_HOST:-db}
 export DB_PORT=${DB_PORT:-3306}
@@ -60,11 +59,12 @@ if [[ -z "$DB_ROOT_PASSWORD" ]]; then
 fi
 
 # ------------------------------------------------------------
-# Configuración global
+# Configuración de common_site_config.json
 # ------------------------------------------------------------
 echo "🔗 Configuring common_site_config.json..."
 cd "$BENCH_DIR"
 
+# Sincronizar el archivo apps.txt con las carpetas físicas
 ls -1 apps > sites/apps.txt || touch sites/apps.txt
 
 bench set-config -g db_host "$DB_HOST"
@@ -75,16 +75,16 @@ bench set-config -g redis_socketio "redis://$REDIS_SOCKETIO"
 bench set-config -gp socketio_port "$SOCKETIO_PORT"
 
 # ------------------------------------------------------------
-# Esperar base de datos
+# Esperar a que MariaDB esté lista
 # ------------------------------------------------------------
 echo "⏳ Waiting for MariaDB at $DB_HOST:$DB_PORT..."
 wait-for-it "$DB_HOST:$DB_PORT" -t 60
 
 # ------------------------------------------------------------
-# Crear sitio si no existe
+# Crear sitio e instalar Apps en la Base de Datos
 # ------------------------------------------------------------
 if [ ! -d "sites/$SITE_NAME" ]; then
-    echo "🏗️  Creating developer site: $SITE_NAME..."
+    echo "🏗️  Creating new site: $SITE_NAME..."
 
     bench new-site "$SITE_NAME" \
         --admin-password "$ADMIN_PASSWORD" \
@@ -92,26 +92,34 @@ if [ ! -d "sites/$SITE_NAME" ]; then
         --install-app frappe \
         --no-mariadb-socket
 
-    # Instalar apps adicionales en el sitio
-    for app in $apps; do
+    # Instalar las apps descargadas en el sitio nuevo
+    for app in $all_app_names; do
         if [ "$app" != "frappe" ]; then
             echo "📦 Installing $app on site $SITE_NAME..."
             bench --site "$SITE_NAME" install-app "$app"
         fi
     done
 else
-    echo "✅ Site $SITE_NAME already exists. Assuming apps are installed."
+    echo "✅ Site $SITE_NAME already exists. Syncing apps..."
+    # Intentar instalar apps que falten por si el JSON cambió
+    for app in $all_app_names; do
+        if [ "$app" != "frappe" ]; then
+             # El comando install-app es seguro; si ya está instalada, no hace nada
+             bench --site "$SITE_NAME" install-app "$app" || true
+        fi
+    done
 fi
 
 bench use "$SITE_NAME"
+
 # ------------------------------------------------------------
-# MANTENER EL CONTENEDOR VIVO
+# Ejecución del comando final
 # ------------------------------------------------------------
-# $@ captura ["sleep", "infinity"] del docker-compose.yml
+# $@ recibe los argumentos del CMD del Dockerfile (Gunicorn)
 if [ $# -gt 0 ]; then
-    echo "🚀 Running command: $@"
+    echo "🚀 Executing command: $@"
     exec "$@"
 else
-    echo "⚠️ No command provided to entrypoint, falling back to sleep infinity..."
+    echo "⚠️ No command provided, staying alive with sleep..."
     exec sleep infinity
 fi
