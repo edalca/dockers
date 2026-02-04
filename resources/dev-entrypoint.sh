@@ -102,6 +102,7 @@ else
     echo "✅ Site $SITE_NAME already exists. Assuming apps are installed."
 fi
 
+bench use "$SITE_NAME"
 # ------------------------------------------------------------
 # MANTENER EL CONTENEDOR VIVO
 # ------------------------------------------------------------
