@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Starting Qota Development Environment..."
+echo "🚀 Starting Frappe Development Environment..."
 
 APPS_DIR="/home/frappe/frappe-bench/apps"
 BENCH_DIR="/home/frappe/frappe-bench"
@@ -52,6 +52,7 @@ export REDIS_QUEUE=${REDIS_QUEUE:-$REDIS_CACHE}
 export REDIS_SOCKETIO=${REDIS_SOCKETIO:-$REDIS_CACHE}
 export SITE_NAME=${SITE_NAME:-devsite}
 export ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+export SOCKETIO_PORT=${SOCKETIO_PORT:-9000}
 
 if [[ -z "$DB_ROOT_PASSWORD" ]]; then
   export DB_ROOT_PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
@@ -71,7 +72,7 @@ bench set-config -gp db_port "$DB_PORT"
 bench set-config -g redis_cache "redis://$REDIS_CACHE"
 bench set-config -g redis_queue "redis://$REDIS_QUEUE"
 bench set-config -g redis_socketio "redis://$REDIS_SOCKETIO"
-bench set-config -gp socketio_port 9000
+bench set-config -gp socketio_port "$SOCKETIO_PORT"
 
 # ------------------------------------------------------------
 # Esperar base de datos
