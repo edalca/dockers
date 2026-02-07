@@ -1,37 +1,23 @@
 # ------------------------------------------------------------------------------------
-# Version Compatibility Matrix
+# Frappe Framework v16 - Full Production Runtime
 # ------------------------------------------------------------------------------------
-# Dependency     | Frappe v14/v15 (Default) | Frappe v16/develop
-# ------------------------------------------------------------------------------------
-# Python         | 3.10+ (use 3.11.6)       | 3.14 (Preview/Future)
-# NodeJS         | 18+   (use 20.x)         | 24   (Future)
-# MariaDB Client | 10.6+                    | 11.8 (Future)
-# ------------------------------------------------------------------------------------
-
-ARG PYTHON_VERSION=3.11.6
+ARG PYTHON_VERSION=3.14.3
 ARG DEBIAN_BASE=bookworm
-ARG NODE_VERSION=20.19.2
-ARG NVM_VERSION=v0.40.3
-ARG FRAPPE_BRANCH=version-15
+ARG NODE_VERSION=24.13
+ARG NVM_VERSION=v0.40.4
+ARG FRAPPE_BRANCH=version-16
 ARG FRAPPE_PATH=https://github.com/frappe/frappe
-ARG FRAPPE_VERSION=16
-
-# ------------------------------------------------------------------------------------
-# Base: Instalación de dependencias del sistema y entorno
-# ------------------------------------------------------------------------------------
+# --- Base Stage: System dependencies and environment setup ---
 FROM python:${PYTHON_VERSION}-slim-${DEBIAN_BASE} AS base
 
-#  Redeclarar ARGs usados en esta etapa
+# Redeclare ARGs for this stage
 ARG NODE_VERSION
 ARG NVM_VERSION
-ARG FRAPPE_BRANCH
-ARG FRAPPE_PATH
 
 ENV NVM_DIR=/home/frappe/.nvm
 ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/:${PATH}
-ENV FRAPPE_BRANCH=${FRAPPE_BRANCH}
-ENV FRAPPE_PATH=${FRAPPE_PATH}
 
+# Copy custom entrypoints and templates
 COPY resources/nginx-template.conf /templates/nginx/frappe.conf.template
 COPY resources/nginx-entrypoint.sh /usr/local/bin/nginx-entrypoint.sh
 COPY resources/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
@@ -39,6 +25,7 @@ COPY resources/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
 ARG WKHTMLTOPDF_VERSION=0.12.6.1-3
 ARG WKHTMLTOPDF_DISTRO=bookworm
 
+# System setup: User, Dependencies, Node, and wkhtmltopdf
 RUN useradd -ms /bin/bash frappe \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
@@ -57,6 +44,7 @@ RUN useradd -ms /bin/bash frappe \
     && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/npm /usr/local/bin/npm \
     && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/yarn /usr/local/bin/yarn \
     && rm -rf ${NVM_DIR}/.cache \
+    # Architecture detection for wkhtmltopdf
     && if [ "$(uname -m)" = "aarch64" ]; then export ARCH=arm64; fi \
     && if [ "$(uname -m)" = "x86_64" ]; then export ARCH=amd64; fi \
     && downloaded_file=wkhtmltox_${WKHTMLTOPDF_VERSION}.${WKHTMLTOPDF_DISTRO}_${ARCH}.deb \
@@ -64,6 +52,7 @@ RUN useradd -ms /bin/bash frappe \
     && apt-get install -y ./${downloaded_file} \
     && rm ${downloaded_file} \
     && rm -rf /var/lib/apt/lists/* \
+    # Cleanup Nginx and prep for non-root execution
     && rm -fr /etc/nginx/sites-enabled/default \
     && pip3 install frappe-bench \
     && sed -i '/user www-data/d' /etc/nginx/nginx.conf \
@@ -75,11 +64,8 @@ RUN useradd -ms /bin/bash frappe \
     && chmod 755 /usr/local/bin/dev-entrypoint.sh \
     && chmod 644 /templates/nginx/frappe.conf.template
 
-# ------------------------------------------------------------------------------------
-# Builder: Instalación básica del Bench (Sin inyectar apps en el build)
-# ------------------------------------------------------------------------------------
+# --- Builder Stage: Bench initialization ---
 FROM base AS builder
-
 ARG FRAPPE_BRANCH
 ARG FRAPPE_PATH
 
@@ -93,7 +79,10 @@ RUN apt-get update \
 
 USER frappe
 
-# Inicializamos el bench solo con Frappe Framework
+ARG FRAPPE_BRANCH
+ARG FRAPPE_PATH
+ARG FRAPPE_VERSION=16.0.0
+
 RUN bench init \
     --frappe-branch=${FRAPPE_BRANCH} \
     --frappe-path=${FRAPPE_PATH} \
@@ -103,53 +92,22 @@ RUN bench init \
     /home/frappe/frappe-bench \
     && echo "{}" > /home/frappe/frappe-bench/sites/common_site_config.json
 
-# ------------------------------------------------------------------------------------
-# Backend: Imagen final de ejecución (Igual a tu versión original)
-# ------------------------------------------------------------------------------------
+# --- Backend Stage: Final Image ---
 FROM base AS backend
 
-# Redeclarar ARGs para que las etiquetas (LABEL) puedan leerlos
 ARG FRAPPE_VERSION
-ARG FRAPPE_BRANCH
-ARG PYTHON_VERSION
-ARG NODE_VERSION
 
-# ------------------------------------------------------------------------------------
-# Metadatos de la Imagen (OCI Standards + Personalizados)
-# ------------------------------------------------------------------------------------
-LABEL org.opencontainers.image.title="Frappe Framework Runtime" \
-      org.opencontainers.image.description="Production-ready Frappe Framework environment pre-configured with Frappe App and system dependencies, designed for rapid deployment of custom apps and sites." \
-      org.opencontainers.image.vendor="edalca" \
-      org.opencontainers.image.version="${FRAPPE_VERSION}" \
-      org.opencontainers.image.authors="Edwin Alonso <edwinalonso162@hotmail.com>" \
-      edalca.frappe.branch="${FRAPPE_BRANCH}" \
-      edalca.frappe.version="${FRAPPE_VERSION}" \
-      edalca.python.version="${PYTHON_VERSION}" \
-      edalca.node.version="${NODE_VERSION}" \
-      edalca.image.type="Frappe Framework"
-
+LABEL org.opencontainers.image.title="Frappe Framework Runtime v16" \
+    org.opencontainers.image.vendor="edalca" \
+    org.opencontainers.image.version="${FRAPPE_VERSION}"
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench
-
-# Copiar el bench ya inicializado desde el builder
 COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
 
-VOLUME [ \
-    "/home/frappe/frappe-bench/sites", \
-    "/home/frappe/frappe-bench/sites/assets", \
-    "/home/frappe/frappe-bench/logs" \
-    ]
+VOLUME ["/home/frappe/frappe-bench/sites", "/home/frappe/frappe-bench/sites/assets", "/home/frappe/frappe-bench/logs"]
 
-CMD [ \
-    "/home/frappe/frappe-bench/env/bin/gunicorn", \
+CMD ["/home/frappe/frappe-bench/env/bin/gunicorn", \
     "--chdir=/home/frappe/frappe-bench/sites", \
     "--bind=0.0.0.0:8000", \
-    "--threads=4", \
-    "--workers=2", \
-    "--worker-class=gthread", \
-    "--worker-tmp-dir=/dev/shm", \
-    "--timeout=120", \
-    "--preload", \
-    "frappe.app:application" \
-    ]
+    "frappe.app:application"]

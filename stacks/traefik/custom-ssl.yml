@@ -1,0 +1,37 @@
+services:
+  traefik:
+    container_name: traefik
+    image: traefik:v3.6
+    restart: always
+    entrypoint: ["/bin/bash", "/init-traefik.sh"]
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.filename=/etc/traefik/cert.yaml"
+      - "--api.dashboard=true"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./init-traefik.sh:/init-traefik.sh:ro
+    environment:
+      - CERT_TYPE=custom
+      - CUSTOM_CERT_CONTENT=${CUSTOM_CERT_CONTENT}
+      - CUSTOM_KEY_CONTENT=${CUSTOM_KEY_CONTENT}
+    networks:
+      - ${NETWORK_NAME}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`${APP}.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${USER}:${ENCRYPT_PASSWORD}"
+
+networks:
+  ${NETWORK_NAME}:
+    external: true

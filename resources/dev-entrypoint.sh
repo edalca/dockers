@@ -74,7 +74,7 @@ bench set-config -g developer_mode 1
 # 4. Esperar a MariaDB
 # ------------------------------------------------------------
 echo "⏳ Waiting for MariaDB at $DB_HOST:$DB_PORT..."
-wait-for-it "$DB_HOST:$DB_PORT" -t 60
+wait-for-it "$DB_HOST:$DB_PORT" -t 10
 
 # ------------------------------------------------------------
 # 5. Crear sitio e instalar Apps (Leyendo de apps.txt)
