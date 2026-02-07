@@ -98,8 +98,10 @@ FROM base AS backend
 ARG FRAPPE_VERSION
 
 LABEL org.opencontainers.image.title="Frappe Framework Runtime v15" \
+    org.opencontainers.image.description="Secure Frappe runtime optimized for multi-stage builds and non-root execution." \
     org.opencontainers.image.vendor="edalca" \
-    org.opencontainers.image.version="${FRAPPE_VERSION}"
+    org.opencontainers.image.version="${FRAPPE_VERSION}" \
+    org.opencontainers.image.authors="Edwin Alonso <edwinalonso162@hotmail.com>"
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench

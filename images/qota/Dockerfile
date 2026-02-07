@@ -14,13 +14,10 @@ ARG FRAPPE_VERSION=16
 # Metadatos de la Aplicación
 # ------------------------------------------------------------
 LABEL org.opencontainers.image.title="Qota App" \
-      org.opencontainers.image.description="Robust Frappe-based management system for water boards and community associations, ensuring transparent accounting and automated billing." \
-      org.opencontainers.image.vendor="edalca" \
-      org.opencontainers.image.version="${QOTA_VERSION}" \
-      org.opencontainers.image.authors="Edwin Alonso <edwinalonso162@hotmail.com>" \
-      edalca.qota.commit="${QOTA_COMMIT}" \
-      edalca.qota.version="${QOTA_VERSION}" \
-      edalca.image.type="Frappe Application"
+    org.opencontainers.image.description="Robust Frappe-based management system for water boards and community associations, ensuring transparent accounting and automated billing." \
+    org.opencontainers.image.vendor="edalca" \
+    org.opencontainers.image.version="${QOTA_VERSION}" \
+    org.opencontainers.image.authors="Edwin Alonso <edwinalonso162@hotmail.com>"
 
 USER root
 RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
