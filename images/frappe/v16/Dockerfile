@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------------------------
 ARG PYTHON_VERSION=3.14.3
 ARG DEBIAN_BASE=bookworm
-ARG NODE_VERSION=24.13
+ARG NODE_VERSION=24.13.0
 ARG NVM_VERSION=v0.40.4
 ARG FRAPPE_BRANCH=version-16
 ARG FRAPPE_PATH=https://github.com/frappe/frappe
@@ -40,9 +40,10 @@ RUN useradd -ms /bin/bash frappe \
     && nvm use v${NODE_VERSION} \
     && npm install -g yarn \
     && nvm alias default v${NODE_VERSION} \
-    && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/node /usr/local/bin/node \
-    && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/npm /usr/local/bin/npm \
-    && ln -s ${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/yarn /usr/local/bin/yarn \
+    && NODE_BIN=$(ls -d ${NVM_DIR}/versions/node/v${NODE_VERSION}* | head -n 1)/bin \
+    && ln -s ${NODE_BIN}/node /usr/local/bin/node \
+    && ln -s ${NODE_BIN}/npm /usr/local/bin/npm \
+    && ln -s ${NODE_BIN}/yarn /usr/local/bin/yarn \
     && rm -rf ${NVM_DIR}/.cache \
     # Architecture detection for wkhtmltopdf
     && if [ "$(uname -m)" = "aarch64" ]; then export ARCH=arm64; fi \
