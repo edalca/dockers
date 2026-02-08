@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status
 set -e
 
 echo "🚀 Starting Frappe Environment..."
@@ -8,22 +9,21 @@ APPS_DIR="/home/frappe/frappe-bench/apps"
 BENCH_DIR="/home/frappe/frappe-bench"
 
 # ------------------------------------------------------------
-# 1. Descarga de apps desde FRAPPE_APPS (Base64)
+# 1. Download apps defined in FRAPPE_APPS (Base64 JSON)
 # ------------------------------------------------------------
 if [ -n "$FRAPPE_APPS" ]; then
     echo "🔍 Checking for apps defined in FRAPPE_APPS..."
     
+    # Decode Base64 and parse JSON length using jq
     raw_json=$(echo "$FRAPPE_APPS" | base64 -d)
     count=$(echo "$raw_json" | jq '. | length')
 
     for (( i=0; i<$count; i++ )); do
         url=$(echo "$raw_json" | jq -r ".[$i].url")
         branch=$(echo "$raw_json" | jq -r ".[$i].branch")
-        
-        # Usamos basename solo para chequear si la carpeta ya existe
-        # Si no existe, bench get-app se encarga de descargarla y nombrarla correctamente
         repo_name=$(basename "$url" .git)
 
+        # Download app only if the directory does not exist
         if [ ! -d "$APPS_DIR/$repo_name" ]; then
             echo "⬇️  Installing app from $url..."
             bench get-app --branch "$branch" "$url"
@@ -36,7 +36,30 @@ else
 fi
 
 # ------------------------------------------------------------
-# 2. Defaults de entorno
+# 2. Re-link apps to Python environment (REDEPLOY FIX)
+# ------------------------------------------------------------
+# This step is critical because the virtual environment (env) is inside 
+# the container, while the apps are in a persistent volume.
+echo "🔗 Re-linking apps to the Python environment..."
+cd "$BENCH_DIR"
+
+# Force editable install for frappe first
+./env/bin/pip install -q -e apps/frappe
+
+# Loop through all directories in /apps and link them to the Python env.
+# This fixes ModuleNotFoundError without needing a full 'bench update'.
+for app_path in apps/*; do
+    if [ -d "$app_path" ]; then
+        app_name=$(basename "$app_path")
+        if [ "$app_name" != "frappe" ]; then
+            echo "   -> Linking $app_name..."
+            ./env/bin/pip install -q -e "$app_path" --no-deps
+        fi
+    fi
+done
+
+# ------------------------------------------------------------
+# 3. Environment Defaults
 # ------------------------------------------------------------
 export DB_HOST=${DB_HOST:-db}
 export DB_PORT=${DB_PORT:-3306}
@@ -47,19 +70,13 @@ export SITE_NAME=${SITE_NAME:-devsite}
 export ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
 export SOCKETIO_PORT=${SOCKETIO_PORT:-9000}
 
-if [[ -z "$DB_ROOT_PASSWORD" ]]; then
-  export DB_ROOT_PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
-  echo "⚠️  DB_ROOT_PASSWORD generated automatically: $DB_ROOT_PASSWORD"
-fi
-
 # ------------------------------------------------------------
-# 3. Configuración de common_site_config.json
+# 4. Configure common_site_config.json
 # ------------------------------------------------------------
 echo "🔗 Configuring common_site_config.json..."
-cd "$BENCH_DIR"
 
-# Sincronizamos apps.txt con las carpetas reales en /apps
-# Este archivo será nuestra "fuente de verdad" para instalar en el sitio
+# Sync apps.txt with the actual folders present in /apps
+# This file acts as the "source of truth" for site app installations
 ls -1 apps > sites/apps.txt || touch sites/apps.txt
 
 bench set-config -g db_host "$DB_HOST"
@@ -71,13 +88,13 @@ bench set-config -gp socketio_port "$SOCKETIO_PORT"
 bench set-config -g developer_mode 1
 
 # ------------------------------------------------------------
-# 4. Esperar a MariaDB
+# 5. Wait for MariaDB Availability
 # ------------------------------------------------------------
 echo "⏳ Waiting for MariaDB at $DB_HOST:$DB_PORT..."
 wait-for-it "$DB_HOST:$DB_PORT" -t 10
 
 # ------------------------------------------------------------
-# 5. Crear sitio e instalar Apps (Leyendo de apps.txt)
+# 6. Site Creation and App Installation
 # ------------------------------------------------------------
 if [ ! -d "sites/$SITE_NAME" ]; then
     echo "🏗️  Creating new site: $SITE_NAME..."
@@ -100,18 +117,18 @@ else
     echo "✅ Site $SITE_NAME already exists. Syncing apps from apps.txt..."
     while read -r app; do
         if [ -n "$app" ] && [ "$app" != "frappe" ]; then
-             # install-app es seguro: si ya está en la DB, no hace nada
+             # install-app is safe: if already in DB, it skips installation
              bench --site "$SITE_NAME" install-app "$app" || true
         fi
     done < sites/apps.txt
 fi
 
 # ------------------------------------------------------------
-# 6. Finalización y ejecución
+# 7. Finalization and Execution
 # ------------------------------------------------------------
 bench use "$SITE_NAME"
 
-# Ejecutamos migrate para asegurar que la DB esté al día con el código
+# Run migrate to ensure database schema matches the code
 echo "🔄 Running migrate..."
 bench migrate
 
