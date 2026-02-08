@@ -47,13 +47,19 @@ cd "$BENCH_DIR"
 ./env/bin/pip install -q -e apps/frappe
 
 # Loop through all directories in /apps and link them to the Python env.
-# This fixes ModuleNotFoundError without needing a full 'bench update'.
 for app_path in apps/*; do
     if [ -d "$app_path" ]; then
         app_name=$(basename "$app_path")
         if [ "$app_name" != "frappe" ]; then
             echo "   -> Linking $app_name..."
             ./env/bin/pip install -q -e "$app_path" --no-deps
+            
+            # --- AGREGAR ESTO: Instala dependencias faltantes ---
+            if [ -f "$app_path/requirements.txt" ]; then
+                echo "   -> Installing requirements for $app_name..."
+                ./env/bin/pip install -q -r "$app_path/requirements.txt"
+            fi
+            # ----------------------------------------------------
         fi
     fi
 done
