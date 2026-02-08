@@ -61,8 +61,14 @@ RUN useradd -ms /bin/bash frappe \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     && touch /run/nginx.pid \
-    && chown -R frappe:frappe /etc/nginx /var/log/nginx /var/lib/nginx /run/nginx.pid \
-    && chmod 755 /usr/local/bin/nginx-entrypoint.sh \
+    && chown -R frappe:frappe /etc/nginx /var/log/nginx /var/lib/nginx /run/nginx.pid
+
+# Copy custom entrypoints and templates
+COPY resources/nginx-template.conf /templates/nginx/frappe.conf.template
+COPY resources/nginx-entrypoint.sh /usr/local/bin/nginx-entrypoint.sh
+COPY resources/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
+
+RUN chmod 755 /usr/local/bin/nginx-entrypoint.sh \
     && chmod 755 /usr/local/bin/dev-entrypoint.sh \
     && chmod 644 /templates/nginx/frappe.conf.template
 
