@@ -111,22 +111,8 @@ if [ ! -d "sites/$SITE_NAME" ]; then
         --mariadb-user-host-login-scope='%' \
         --no-mariadb-socket \
         --set-default
-
-    echo "📦 Installing detected apps from apps.txt..."
-    while read -r app; do
-        if [ -n "$app" ] && [ "$app" != "frappe" ]; then
-            echo "   -> Installing $app..."
-            bench --site "$SITE_NAME" install-app "$app"
-        fi
-    done < sites/apps.txt
 else
     echo "✅ Site $SITE_NAME already exists. Syncing apps from apps.txt..."
-    while read -r app; do
-        if [ -n "$app" ] && [ "$app" != "frappe" ]; then
-             # install-app is safe: if already in DB, it skips installation
-             bench --site "$SITE_NAME" install-app "$app" || true
-        fi
-    done < sites/apps.txt
 fi
 
 # ------------------------------------------------------------
