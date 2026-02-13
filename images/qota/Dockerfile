@@ -1,7 +1,7 @@
 # ------------------------------------------------------------
 # Base dinámica de Frappe (Tu imagen optimizada)
 # ------------------------------------------------------------
-ARG FRAPPE_BASE_IMAGE=edalca/frappe-framework:16
+ARG FRAPPE_BASE_IMAGE=edalca/frappe:16
 FROM ${FRAPPE_BASE_IMAGE}
 
 # Redeclarar ARGs para que estén disponibles en esta etapa
