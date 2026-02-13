@@ -30,8 +30,7 @@ ENV BASH_ENV=/home/frappe/.bashrc
 # Qota Installation & Asset Compilation
 # ------------------------------------------------------------
 
-RUN bench get-app qota ${QOTA_PATH} --branch ${QOTA_BRANCH} \
-    && rm -rf ~/.cache/pip ~/.cache/yarn
+RUN bench get-app qota ${QOTA_PATH} --branch ${QOTA_BRANCH}
 
 # This generates the JS/CSS files inside the image layer
 RUN bench build --app qota
