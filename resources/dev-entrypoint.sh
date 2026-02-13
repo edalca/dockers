@@ -96,6 +96,7 @@ if [ ! -d "sites/$SITE_NAME" ]; then
     bench new-site "$SITE_NAME" \
         --admin-password "${ADMIN_PASSWORD:-admin}" \
         --mariadb-root-password "$DB_ROOT_PASSWORD" \
+        --mariadb-user-host-login-scope='%'
         --set-default
 else
     echo "✅ Site $SITE_NAME detected."
