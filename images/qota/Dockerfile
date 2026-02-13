@@ -5,10 +5,9 @@ ARG FRAPPE_BASE_IMAGE=edalca/frappe:16
 FROM ${FRAPPE_BASE_IMAGE}
 
 # Redeclare ARGs for this stage
-ARG QOTA_REPO=https://github.com/edalca/qota.git
-ARG QOTA_COMMIT
+ARG QOTA_PATH=https://github.com/edalca/qota.git
+ARG QOTA_BRANCH=version-16
 ARG QOTA_VERSION=16
-ARG FRAPPE_VERSION=16
 
 # ------------------------------------------------------------
 # Application Metadata
@@ -31,7 +30,7 @@ ENV BASH_ENV=/home/frappe/.bashrc
 # Qota Installation & Asset Compilation
 # ------------------------------------------------------------
 
-RUN bench get-app qota ${QOTA_REPO} \
+RUN bench get-app qota ${QOTA_PATH} --branch ${QOTA_BRANCH} \
     && rm -rf ~/.cache/pip ~/.cache/yarn
 
 # This generates the JS/CSS files inside the image layer
