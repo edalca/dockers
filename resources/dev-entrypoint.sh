@@ -83,7 +83,7 @@ bench set-config -g developer_mode 1
 # ------------------------------------------------------------
 echo "📦 Refreshing asset symlinks..."
 # Re-links site assets to app public folders without full compilation
-bench setup symlinks
+bench build
 
 # ------------------------------------------------------------
 # 5. Database Wait and Migration

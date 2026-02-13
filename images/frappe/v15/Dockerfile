@@ -18,11 +18,6 @@ ARG NVM_VERSION
 ENV NVM_DIR=/home/frappe/.nvm
 ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/:${PATH}
 
-# Copy custom entrypoints and templates
-COPY resources/nginx-template.conf /templates/nginx/frappe.conf.template
-COPY resources/nginx-entrypoint.sh /usr/local/bin/nginx-entrypoint.sh
-COPY resources/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
-
 ARG WKHTMLTOPDF_VERSION=0.12.6.1-3
 ARG WKHTMLTOPDF_DISTRO=bookworm
 
@@ -63,15 +58,6 @@ RUN useradd -ms /bin/bash frappe \
     && touch /run/nginx.pid \
     && chown -R frappe:frappe /etc/nginx /var/log/nginx /var/lib/nginx /run/nginx.pid
 
-# Copy custom entrypoints and templates
-COPY resources/nginx-template.conf /templates/nginx/frappe.conf.template
-COPY resources/nginx-entrypoint.sh /usr/local/bin/nginx-entrypoint.sh
-COPY resources/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
-
-RUN chmod 755 /usr/local/bin/nginx-entrypoint.sh \
-    && chmod 755 /usr/local/bin/dev-entrypoint.sh \
-    && chmod 644 /templates/nginx/frappe.conf.template
-
 # --- Builder Stage: Bench initialization ---
 FROM base AS builder
 
@@ -108,6 +94,15 @@ LABEL org.opencontainers.image.title="Frappe Framework Runtime v15" \
     org.opencontainers.image.vendor="edalca" \
     org.opencontainers.image.version="${FRAPPE_VERSION}" \
     org.opencontainers.image.authors="Edwin Alonso <edwinalonso162@hotmail.com>"
+
+# Copy custom entrypoints and templates
+COPY resources/nginx-template.conf /templates/nginx/frappe.conf.template
+COPY resources/nginx-entrypoint.sh /usr/local/bin/nginx-entrypoint.sh
+COPY resources/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
+
+RUN chmod 755 /usr/local/bin/nginx-entrypoint.sh \
+    && chmod 755 /usr/local/bin/dev-entrypoint.sh \
+    && chmod 644 /templates/nginx/frappe.conf.template
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench

@@ -7,6 +7,7 @@ ARG NODE_VERSION=24.13.0
 ARG NVM_VERSION=v0.40.4
 ARG FRAPPE_BRANCH=version-16
 ARG FRAPPE_PATH=https://github.com/frappe/frappe
+
 # --- Base Stage: System dependencies and environment setup ---
 FROM python:${PYTHON_VERSION}-slim-${DEBIAN_BASE} AS base
 
