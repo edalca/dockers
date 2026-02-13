@@ -27,6 +27,7 @@ USER frappe
 WORKDIR /home/frappe/frappe-bench
 
 ENV BASH_ENV=/home/frappe/.bashrc
+RUN echo '{"socketio_port": 9000}' > sites/common_site_config.json
 # ------------------------------------------------------------
 # HRMS Installation
 # ------------------------------------------------------------
