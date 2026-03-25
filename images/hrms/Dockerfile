@@ -4,10 +4,10 @@
 ARG FRAPPE_BASE_IMAGE=edalca/frappe:16
 FROM ${FRAPPE_BASE_IMAGE}
 
-ARG ERPNEXT_REPO=https://github.com/frappe/erpnext.git
+ARG ERPNEXT_REPO=https://github.com/edalca/erpnext.git
 ARG ERPNEXT_BRANCH=version-16
 
-ARG HRMS_REPO=https://github.com/frappe/hrms.git
+ARG HRMS_REPO=https://github.com/edalca/hrms.git
 ARG HRMS_BRANCH=version-16
 ARG HRMS_VERSION=16
 

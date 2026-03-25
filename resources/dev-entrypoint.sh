@@ -14,7 +14,7 @@ set -o pipefail
 # ------------------------------------------------------------------------------
 APPS_DIR="/home/frappe/frappe-bench/apps"
 BENCH_DIR="/home/frappe/frappe-bench"
-PIP_BIN="pip3"
+
 
 # ------------------------------------------------------------------------------
 # Helper Functions
@@ -53,7 +53,7 @@ wait_for_service() {
 # ------------------------------------------------------------------------------
 log "🚀 Starting Development Entrypoint..."
 
-if [ -n "$FRAPPE_APPS" ]; then
+if [ -n "$FRAPPE_APPS" ] && [ -z "$SKIP_APPS_GET" ]; then
     log "🔍 Processing FRAPPE_APPS environment variable..."
     
     # helper function to validate base64
@@ -103,44 +103,7 @@ if [ -n "$FRAPPE_APPS" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 2. Python Environment & Re-linking
-# ------------------------------------------------------------------------------
-# Because we are in dev with bind-mounts, the local python env might lose track 
-# of installed packages if the container is recreated but the volume persists,
-# or if new apps were added. We force re-link everything.
-
-log "🔗 Re-linking apps to Python environment..."
-cd "$BENCH_DIR"
-
-# A. Install 'frappe' first (CORE REQUIREMENT)
-if [ -d "apps/frappe" ]; then
-    log "   -> Linking core: frappe"
-    "$PIP_BIN" install -q -e apps/frappe --no-cache-dir
-else
-    error "Frappe app not found in apps/frappe! Critical error."
-fi
-
-# B. Install all other apps
-for app_path in apps/*; do
-    if [ -d "$app_path" ]; then
-        app_name=$(basename "$app_path")
-        
-        # Skip frappe as it's already done
-        if [ "$app_name" == "frappe" ]; then continue; fi
-        
-        log "   -> Linking app: $app_name"
-        "$PIP_BIN" install -q -e "$app_path" --no-deps
-        
-        # Install requirements if present
-        if [ -f "$app_path/requirements.txt" ]; then
-            log "      -> Installing requirements.txt for $app_name"
-            "$PIP_BIN" install -q -r "$app_path/requirements.txt"
-        fi
-    fi
-done
-
-# ------------------------------------------------------------------------------
-# 3. Site Configuration & Asset Management
+# 2. Site Configuration (Prioritized)
 # ------------------------------------------------------------------------------
 
 # Re-build apps.txt based on actual directories
@@ -157,19 +120,13 @@ bench set-config -g redis_socketio "redis://${REDIS_SOCKETIO:-redis:6379/2}"
 bench set-config -gp socketio_port "${SOCKETIO_PORT:-9000}"
 bench set-config -g developer_mode 1
 
-# Only build if we are NOT running the 'watch' command, roughly
-# (Or we can just rely on the user to run bench build if assets are missing, 
-# but in dev it's nice to ensure symlinks are there)
-log "📦 Ensuring assets are symlinked..."
-bench build --restore
-
 # ------------------------------------------------------------------------------
-# 4. Wait for Dependencies
+# 3. Wait for Dependencies
 # ------------------------------------------------------------------------------
 wait_for_service "${DB_HOST:-db}" "${DB_PORT:-3306}" "MariaDB"
 
 # ------------------------------------------------------------------------------
-# 5. Site Creation / Migration
+# 4. Site Creation (Prioritized)
 # ------------------------------------------------------------------------------
 if [ -n "$SITE_NAME" ]; then
     if [ ! -d "sites/$SITE_NAME" ]; then
@@ -197,15 +154,34 @@ if [ -n "$SITE_NAME" ]; then
         log "✅ Site $SITE_NAME created."
     else
         log "✅ Site $SITE_NAME exists."
-        bench use "$SITE_NAME"
-        
-        log "🔄 Running migrations..."
-        bench migrate
+        bench use "$SITE_NAME"  
+       
     fi
+fi
+ # ------------------------------------------------------------------------------
+        # 5. Migrations (Optional)
+        # ------------------------------------------------------------------------------
+if [ -z "$SKIP_MIGRATE" ]; then
+    log "🔄 Running migrations..."
+    bench migrate
+else
+    log "⏩ Skipping migrations (SKIP_MIGRATE is set)"
+fi
+# ------------------------------------------------------------------------------
+# 6. Asset Management (Optional, at End)
+# ------------------------------------------------------------------------------
+# Only build if we are NOT running the 'watch' command, roughly
+# (Or we can just rely on the user to run bench build if assets are missing, 
+# but in dev it's nice to ensure symlinks are there)
+if [ -z "$SKIP_BUILD" ]; then
+    log "📦 Ensuring assets are symlinked..."
+    bench build
+else
+    log "⏩ Skipping asset build (SKIP_BUILD is set)"
 fi
 
 # ------------------------------------------------------------------------------
-# 6. Handover
+# 7. Handover
 # ------------------------------------------------------------------------------
 if [ $# -gt 0 ]; then
     log "🚀 Executing command: $@"
