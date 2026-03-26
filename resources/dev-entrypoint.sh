@@ -53,54 +53,14 @@ wait_for_service() {
 # ------------------------------------------------------------------------------
 log "🚀 Starting Development Entrypoint..."
 
-if [ -n "$FRAPPE_APPS" ] && [ -z "$SKIP_APPS_GET" ]; then
-    log "🔍 Processing FRAPPE_APPS environment variable..."
-    
-    # helper function to validate base64
-    validate_json() {
-        echo "$1" | jq . >/dev/null 2>&1
-    }
-
-    # Decode payload
-    DECODED_APPS=$(echo "$FRAPPE_APPS" | base64 -d)
-    
-    if validate_json "$DECODED_APPS"; then
-        # Parse passing to a temporary loop
-        # We use jq to handle the array iteration
-        count=$(echo "$DECODED_APPS" | jq '. | length')
-        
-        for (( i=0; i<$count; i++ )); do
-            row=$(echo "$DECODED_APPS" | jq -r ".[$i] | @base64")
-            
-            # Function to decode inner json object
-            _jq() {
-             echo "${row}" | base64 -d | jq -r "${1}"
-            }
-            
-            url=$(_jq '.url')
-            branch=$(_jq '.branch')
-            
-            # Handle potential nulls
-            if [ "$branch" == "null" ]; then branch=""; fi
-            
-            # clean url to get app name
-            repo_name=$(basename "$url" .git)
-            
-            if [ -d "$APPS_DIR/$repo_name" ]; then
-                log "✅ App '$repo_name' already exists in apps volume."
-            else
-                log "⬇️  App '$repo_name' missing. Cloning from $url..."
-                if [ -n "$branch" ]; then
-                    bench get-app --branch "$branch" --resolve-deps "$repo_name" "$url"
-                else
-                    bench get-app --resolve-deps "$repo_name" "$url"
-                fi
-            fi
-        done
-    else
-        error "FRAPPE_APPS is not a valid JSON. Please check the format."
+for app in /home/frappe/frappe-bench/apps/*; do
+    if [ -d "$app" ]; then
+        app_name=$(basename "$app")
+        log "📦 Installing app in editable mode: $app_name..."
+        bench pip install -e "$app"
     fi
-fi
+done
+
 
 # ------------------------------------------------------------------------------
 # 2. Site Configuration (Prioritized)
