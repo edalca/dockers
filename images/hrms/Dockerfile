@@ -1,7 +1,7 @@
 # ------------------------------------------------------------
 # Dynamic Frappe Base
 # ------------------------------------------------------------
-ARG FRAPPE_BASE_IMAGE=edalca/frappe:16
+ARG FRAPPE_BASE_IMAGE=edalca/frappe:latest
 FROM ${FRAPPE_BASE_IMAGE}
 
 ARG ERPNEXT_REPO=https://github.com/edalca/erpnext.git
